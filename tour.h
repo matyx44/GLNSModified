@@ -5,17 +5,19 @@
 #ifndef GLNS_TOUR_H
 #define GLNS_TOUR_H
 
-#include "vertex.h"
-#include "edge.h"
-#include "set.h"
+#include <utility>
+
+#include "utils.hpp"
+#include "polygon.h"
 
 namespace glns {
 class Tour {
 public:
     Tour() = default;;
+    Tour(std::vector<Polygon> polygons, std::vector<pmap::geom::FPoint> points) : polygons(std::move(polygons)), points(std::move(points)) {};
 
-    std::vector<Vertex> vertices;
-    std::vector<Edge> edges;
+    std::vector<Polygon> polygons;
+    std::vector<pmap::geom::FPoint> points;
 };
 
 }

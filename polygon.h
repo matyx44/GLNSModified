@@ -7,21 +7,18 @@
 
 #include <vector>
 #include <random>
-#include "vertex.h"
+#include "utils.hpp"
 
 namespace glns {
 
 class Polygon {
 public:
-    Polygon();
-    Polygon(std::vector<Vertex> vertices, int id);
+    Polygon() = default;
+    Polygon(std::vector<pmap::geom::FPoint> points, int id) : points(std::move(points)), id(id) {};
 
-    std::vector<Vertex> vertices;
-    int id; // sets are indexed from 0; id should correspond with position in vector "sets"
-    std::vector<float> rgb;
-    float minDist;
-
-    static std::minstd_rand generator;
+    std::vector<pmap::geom::FPoint> points;
+    int id; // id of the polygon
+    double removalCost;
 
 };
 

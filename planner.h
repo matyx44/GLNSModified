@@ -10,6 +10,9 @@
 
 #include "tour.h"
 #include "heuristic.h"
+#include "utils.hpp"
+#include "polygon.h"
+
 
 
 namespace glns {
@@ -21,20 +24,16 @@ public:
     Planner();
     void run(Canvas *canvas, int argc, char *argv[]);
 
-    void precomputeSetVertexDistances();
     void initHeuristics();
-
-    Tour initRandomTour();
+    //void precomputePolyToPolyDistances();
     Tour initRandomInsertionTour();
-    Tour initPartialTour(int length);
 
-    Vertex getRandomVertex(std::vector<Vertex> &vertices);
-    Tour removeVertexFromTour(Tour tour, Vertex vertex);
-    static float getTourWeight(Tour &tour);
+    int getRandomInt(int from, int to);
+    static double getTourLength(Tour &tour);
     int getRandomNumber(int from, int to);
 
     int unifiedSetSelection(Tour partialTour, float lambda);
-    int cheapestSetSelection(const Tour& partialTour);
+    int cheapestSetSelection(Tour& partialTour);
     Tour unifiedInsertion(Tour partialTour, float lambda, float my);
 
     Tour segmentRemoval(Tour tour, int N_r);
@@ -42,15 +41,13 @@ public:
     Tour worstRemoval(Tour tour, int N_r, float lambda);
     Tour removalFramework(Tour tour, float lambda);
     Tour removeInsert(Tour current, const std::string& phase);
-    static void removeEdge(Edge &edge, Tour &tour);
 
     Heuristic * selectInsertionHeuristic(std::string phase);
     Heuristic * selectRemovalHeuristic(std::string phase);
-    void updateHeuristicsWeights(float epsilon);
-    void printWeights();
+    void updateHeuristicsWeights(double epsilon);
 
-    bool acceptTrial(float trialCost, float currentCost, float temperature);
-    bool acceptTrialNoParam(float trialCost, float currentCost, float probAccept);
+    bool acceptTrial(double trialCost, double currentCost, double temperature);
+    bool acceptTrialNoParam(double trialCost, double currentCost, double probAccept);
 
     Tour reOpt(const Tour& tour);
     Tour moveOpt(Tour tour, int NMove);
@@ -59,15 +56,13 @@ public:
     Tour solve(Canvas *canvas, const std::string& mode, float maxTime, float tourBudget);
 
 private:
-    std::vector<Vertex> vertices;
-    std::vector<Set> sets;
-    std::vector<std::vector<float> > edgeMatrix;
-    std::vector<std::vector<float> > setVertexDistances; // (set.id, vertex.id) -> minDistance
+    //std::vector<pmap::geom::FPolygon> polygons;
+    std::vector<Polygon> polygons;
     std::vector<Heuristic> insertionHeuristics;
     std::vector<Heuristic> removalHeuristics;
     std::minstd_rand generator;
+    //std::vector<std::vector<double> > polyToPolyDistances;
 
-    int shiftSize; // if input data aren't indexed from zero, this value stores the offset
 };
 
 }

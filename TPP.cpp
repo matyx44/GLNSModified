@@ -21,11 +21,11 @@ void printPoints(std::vector<FPoint> &points){
 void TPP::run() {
     //Step 1 - Make polygons convex using Melkman's algorithm.
     for(auto &polygon : inputPolygons){
-        FPolygon convexPolygon;
-        simpleHull_2D(polygon, convexPolygon);
+        std::vector<FPoint> ps;
+        simpleHull_2D(polygon.points, ps);
+        Polygon convexPolygon(ps, 0);
         convexHulls.emplace_back(convexPolygon);
     }
-    //printHulls();
     //Step 2 - Find the length L1
     std::vector<FPoint> points = algorithm3(convexHulls);
 
@@ -33,36 +33,22 @@ void TPP::run() {
         points[i] = findOptimalConnectingPointInPolygon(points[i-1], points[i+1], inputPolygons[i]);
     }
 
-    std::vector<FPoint> testPoints;
-    testPoints.emplace_back(FPoint(26.2204, 14.9495));
-    testPoints.emplace_back(FPoint(50.9426, 15.8024));
-    testPoints.emplace_back(FPoint(90, 16.6667));
-    testPoints.emplace_back(FPoint(64.8414, 61.7941));
-    testPoints.emplace_back(FPoint(27.8592, 70.9482));
-    testPoints.emplace_back(FPoint(26.7345, 42.5394));
-    testPoints.emplace_back(FPoint(26.2204, 14.9495));
-
-
-
-
-    //points = algorithm3WithInitialPath(inputPolygons, points);
     points = algorithm3WithInitialPath(inputPolygons, points);
 
     outputPoints = points;
-
-    std::cout << "Final final length: " << calcCycleLength(points, inputPolygons.size()) << std::endl;
+    //std::cout << "Final final length: " << calcCycleLength(points, inputPolygons.size()) << std::endl;
 
 
 }
 
-double pointToPointDist(FPoint &a, FPoint &b){
+double pointToPointDistance(FPoint &a, FPoint &b){
     return std::sqrt(CIntersection<FPoint>::squared_distance(a, b));
 }
 
 double TPP::calcCycleLength(std::vector<FPoint> &points, int k){
     double L1 = 0;
     for (int i = 0; i < k; ++i) {
-        L1 += pointToPointDist(points[i], points[i+1]);
+        L1 += pointToPointDistance(points[i], points[i+1]);
     }
     return L1;
 }
@@ -129,26 +115,26 @@ static bool lineSegmentLineIntersect(FPoint & p1, FPoint & p2, FPoint & p3, FPoi
     return true;
 }
 
-FPoint TPP::findOptimalConnectingPointInPolygon(FPoint &pointA, FPoint &pointB, FPolygon &polygon){
+FPoint TPP::findOptimalConnectingPointInPolygon(FPoint &pointA, FPoint &pointB, Polygon &polygon){
     FPoint optimalPoint;
     double minDist = std::numeric_limits<double>::max();
-    int n = polygon.size();
+    int n = polygon.points.size();
     for (int i = 0; i < n; i++) {
         int j = (i < (n - 1)) ? i + 1 : 0;
         FPoint newB(pointB.x, pointB.y);
-        if(!pointsOnTheOppositeSidesOfLine(pointA, pointB, polygon[i], polygon[j])) {
-            reflectPointOverLine(pointB, polygon[i], polygon[j], newB);
+        if(!pointsOnTheOppositeSidesOfLine(pointA, pointB, polygon.points[i], polygon.points[j])) {
+            reflectPointOverLine(pointB, polygon.points[i], polygon.points[j], newB);
         }
         FPoint tmpOptimalPoint;
         double k;
-        lineSegmentLineIntersect(pointA, newB, polygon[i], polygon[j], tmpOptimalPoint, k);
+        lineSegmentLineIntersect(pointA, newB, polygon.points[i], polygon.points[j], tmpOptimalPoint, k);
         if(k < 0){
-            tmpOptimalPoint = polygon[i];
+            tmpOptimalPoint = polygon.points[i];
         }
         else if(k > 1){
-            tmpOptimalPoint = polygon[j];
+            tmpOptimalPoint = polygon.points[j];
         }
-        double tmpDist = pointToPointDist(pointA, tmpOptimalPoint) + pointToPointDist(newB, tmpOptimalPoint);
+        double tmpDist = pointToPointDistance(pointA, tmpOptimalPoint) + pointToPointDistance(newB, tmpOptimalPoint);
         if(tmpDist < minDist){
             minDist = tmpDist;
             optimalPoint = tmpOptimalPoint;
@@ -208,7 +194,7 @@ FPoint TPP::findOptimalConnectingPointInPolygonNaive(FPoint &pointA, FPoint &poi
     }
 }*/
 
-
+/*
 FPoint TPP::findOptimalConnectingPointInPolygonBruteForce(FPoint &pointA, FPoint &pointB, FPolygon &polygon){
     FPoint optimalPoint;
     //If the line segment between the two points intersects the polygon, the work is done.
@@ -233,9 +219,9 @@ FPoint TPP::findOptimalConnectingPointInPolygonBruteForce(FPoint &pointA, FPoint
         }
         return optimalPoint;
    // }
-}
+}*/
 
-std::vector<FPoint> TPP::algorithm3WithInitialPath(std::vector<FPolygon> &polygons, std::vector<FPoint> &inputPoints){
+std::vector<FPoint> TPP::algorithm3WithInitialPath(std::vector<glns::Polygon> &polygons, std::vector<FPoint> &inputPoints){
     int k = polygons.size();
 
     ///Step 1 - Get initial points
@@ -244,7 +230,7 @@ std::vector<FPoint> TPP::algorithm3WithInitialPath(std::vector<FPolygon> &polygo
     ///Step 2 - Get initial lengths L0 and L1
     double L0 = std::numeric_limits<double>::max();
     double L1 = calcCycleLength(points, k);
-    std::cout << "Initial length L1 - " << L1 << std::endl;
+    //std::cout << "Initial length L1 - " << L1 << std::endl;
     while(L0 - L1 >= accuracy){
         FPoint point0 = findOptimalConnectingPointInPolygon(points[k-1], points[1], polygons[0]);
         points[0] = point0;
@@ -256,29 +242,29 @@ std::vector<FPoint> TPP::algorithm3WithInitialPath(std::vector<FPolygon> &polygo
         L0 = L1;
         L1 = calcCycleLength(points, k);
     }
-    std::cout << "Points: " << std::endl;
-    printPoints(points);
-    std::cout << "Final length L1 - " << L1 << std::endl;
+    //std::cout << "Points: " << std::endl;
+    //printPoints(points);
+    //std::cout << "Final length L1 - " << L1 << std::endl;
     return points;
 }
 
-std::vector<FPoint> TPP::algorithm3(std::vector<FPolygon> &polygons) {
+std::vector<FPoint> TPP::algorithm3(std::vector<glns::Polygon> &polygons) {
     int k = polygons.size();
 
     ///Step 1 - Get initial points of the path (random vertex for each polygon)
     std::vector<FPoint> points;
     points.reserve(polygons.size()+1);
     for(auto &polygon : polygons){
-        points.emplace_back(polygon[0]);
+        points.emplace_back(polygon.points[0]);
     }
     //Make cycle
-    points.emplace_back(polygons[0][0]);
+    points.emplace_back(polygons[0].points[0]);
 
 
     ///Step 2 - Get initial lengths L0 and L1
     double L0 = std::numeric_limits<double>::max();
     double L1 = calcCycleLength(points, k);
-    std::cout << "Initial length L1 - " << L1 << std::endl;
+    //std::cout << "Initial length L1 - " << L1 << std::endl;
     while(L0 - L1 >= accuracy){
         FPoint point0 = findOptimalConnectingPointInPolygon(points[k-1], points[1], polygons[0]);
         points[0] = point0;
@@ -290,9 +276,9 @@ std::vector<FPoint> TPP::algorithm3(std::vector<FPolygon> &polygons) {
         L0 = L1;
         L1 = calcCycleLength(points, k);
     }
-    std::cout << "Points: " << std::endl;
-    printPoints(points);
-    std::cout << "Final length L1 - " << L1 << std::endl;
+    //std::cout << "Points: " << std::endl;
+    //printPoints(points);
+    //std::cout << "Final length L1 - " << L1 << std::endl;
     return points;
 }
 
