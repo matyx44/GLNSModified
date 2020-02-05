@@ -14,9 +14,9 @@ namespace glns {
 class Tour {
 public:
     Tour() = default;;
-    Tour(std::vector<Polygon> polygons, std::vector<pmap::geom::FPoint> points) : polygons(std::move(polygons)), points(std::move(points)) {};
+    Tour(std::vector<int> polygons, std::vector<pmap::geom::FPoint> points) : polygons(std::move(polygons)), points(std::move(points)) {};
 
-    std::vector<Polygon> polygons;
+    std::vector<int> polygons;
     std::vector<pmap::geom::FPoint> points;
 };
 

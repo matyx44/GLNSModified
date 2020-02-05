@@ -29,7 +29,7 @@ Planner::Planner() {
 void Planner::run(glns::Canvas *canvas, int argc, char *argv[]) {
     std::string input;
     std::string output;
-    std::string mode = "default";
+    std::string mode = "fast";
     bool outFlag = false;
     bool visualize = false;
     float maxTime = DBL_MAX;
@@ -68,7 +68,7 @@ void Planner::run(glns::Canvas *canvas, int argc, char *argv[]) {
 
     std::ofstream file;
     pmap::geom::FMap map;
-    pmap::loadMap(input+"potholes.txt", map);
+    pmap::loadMap(input+"potholes100.txt", map);
 
     for (int i = 1; i < map.size(); ++i) {
         std::vector<FPoint> points;
@@ -83,13 +83,19 @@ void Planner::run(glns::Canvas *canvas, int argc, char *argv[]) {
     auto timeStart = std::chrono::high_resolution_clock::now();
     Tour tour = solve(canvas, mode, maxTime, tourBudget);
 
+    std::cout << "Number of sets: " << tour.polygons.size() <<std::endl;
     //Draw tour
     pmap::draw::MapDrawer md(map);
     md.openPDF(input+"outputTPPPotholes.pdf");
     for (auto &polygon : polygons) {
+        double r = getRandomInt(0,255);
+        double g = getRandomInt(0,255);
+        double b = getRandomInt(0,255);
+        pmap::draw::RGB col = {r,g,b};
+
         for (int i = 0; i < polygon.points.size(); ++i) {
             int j = i == polygon.points.size() - 1 ? 0 : i + 1;
-            md.drawLine(polygon.points[i], polygon.points[j], 15.0, PMAP_DRAW_COL_BLACK);
+            md.drawLine(polygon.points[i], polygon.points[j], 15.0, col);
         }
     }
     for (int l = 0; l < tour.points.size(); ++l) {
@@ -100,6 +106,14 @@ void Planner::run(glns::Canvas *canvas, int argc, char *argv[]) {
         md.drawPoint(p2, PMAP_DRAW_COL_BLUE, 10, 1);
         md.drawLine(p1, p2, 10, PMAP_DRAW_COL_GREEN, 1.0);
     }
+    /*
+    for (geom_float l = 100; l <= 2200; l+=100) {
+        FPoint p1(100*0.016f,l*0.016f);
+        FPoint p2(l*0.016f,100*0.016f);
+        md.drawPoint(p1, PMAP_DRAW_COL_BLUE, 20, 1);
+        md.drawPoint(p2, PMAP_DRAW_COL_BLUE, 20, 1);
+    }*/
+
     md.closePDF();
 
 }
@@ -154,8 +168,8 @@ Tour Planner::initRandomInsertionTour() {
     }
     int indexPoint2 = getRandomInt(0, polygons[indexPolygon2].points.size() - 1);
 
-    tour.polygons.emplace_back(polygons[indexPolygon1]);
-    tour.polygons.emplace_back(polygons[indexPolygon2]);
+    tour.polygons.emplace_back(indexPolygon1);
+    tour.polygons.emplace_back(indexPolygon2);
     tour.points.emplace_back(polygons[indexPolygon1].points[indexPoint1]);
     tour.points.emplace_back(polygons[indexPolygon2].points[indexPoint2]);
 
@@ -236,8 +250,8 @@ int Planner::unifiedSetSelection(Tour partialTour, float lambda) {
     // get indices of sets, that are not in partialTour; (P_V \ P_T)
     std::vector<std::pair<int, float>> unusedSetsDists;
     std::vector<bool> isUsed(polygons.size(), false);
-    for (auto &v:partialTour.polygons) {
-        isUsed[v.id] = true;
+    for (auto &id : partialTour.polygons) {
+        isUsed[id] = true;
     }
     for (int i = 0; i < polygons.size(); i++) {
         if (!isUsed[i]) {
@@ -271,16 +285,15 @@ int Planner::unifiedSetSelection(Tour partialTour, float lambda) {
 
 int Planner::cheapestSetSelection(Tour& partialTour) {
     std::vector<bool> isUsed(polygons.size(), false);
-    for (auto &p : partialTour.polygons) {
-        isUsed[p.id] = true;
+    for (auto &id : partialTour.polygons) {
+        isUsed[id] = true;
     }
     double minCost = FLT_MAX;
     int minSetId = -1;
     for (int i = 0; i < polygons.size(); ++i) {
         if(!isUsed[i]){
-            double minInsCost = FLT_MAX;
-            for (int j = 0; j < partialTour.polygons.size(); ++j) {
-                int k = j == partialTour.polygons.size() - 1 ? 0 : j + 1;
+            for (int j = 0; j < partialTour.points.size(); ++j) {
+                int k = j == partialTour.points.size() - 1 ? 0 : j + 1;
                 FPoint pointX = partialTour.points[j];
                 FPoint pointY = partialTour.points[k];
                 Polygon prospectivePolygon = polygons[i];
@@ -320,13 +333,12 @@ Tour Planner::unifiedInsertion(Tour partialTour, float lambda, float my) {
         std::cout << "Unified insertion: given tour too long. Returning unchanged tour." << std::endl;
     } else {
         // Pick a set V_i in P_V \ P_T
-        Polygon V_i;
         int i;
         if (lambda == -1)
             i = cheapestSetSelection(partialTour);
         else
             i = unifiedSetSelection(partialTour, lambda);
-        V_i = polygons[i];
+        Polygon V_i = polygons[i];
 
         double minWeight = FLT_MAX;
         FPoint minPoint;
@@ -357,7 +369,7 @@ Tour Planner::unifiedInsertion(Tour partialTour, float lambda, float my) {
             }
         }
 
-        partialTour.polygons.emplace(partialTour.polygons.begin() + emplaceIndex, V_i);
+        partialTour.polygons.emplace(partialTour.polygons.begin() + emplaceIndex, i);
         partialTour.points.emplace(partialTour.points.begin() + emplaceIndex, minPoint);
 
     }
@@ -406,7 +418,7 @@ Tour Planner::distanceRemoval(Tour tour, int N_r, float lambda) {
             int index = getRandomInt(0, V_removed.size() - 1);
             FPoint seed = V_removed[index];
             for (int j = 0; j < tour.polygons.size(); ++j) {
-                tour.polygons[j].removalCost = pointToPointDist(tour.points[j], seed);
+                polygons[tour.polygons[j]].removalCost = pointToPointDist(tour.points[j], seed);
             }
             tour = removalFramework(tour, lambda);
         }
@@ -425,7 +437,7 @@ Tour Planner::worstRemoval(Tour tour, int N_r, float lambda) {
             int k = j == tour.polygons.size() - 1 ? 0 : j + 1;
             int l = k == tour.polygons.size() - 1 ? 0 : k + 1;
 
-            tour.polygons[j].removalCost = pointToPointDist(tour.points[j], tour.points[k])
+            polygons[tour.polygons[j]].removalCost = pointToPointDist(tour.points[j], tour.points[k])
                                          + pointToPointDist(tour.points[k], tour.points[l])
                                          - pointToPointDist(tour.points[j], tour.points[l]);
         }
@@ -455,13 +467,13 @@ Tour Planner::removalFramework(Tour tour, float lambda) {
     std::discrete_distribution<int> distribution(weights.begin(), weights.end());
     int k = distribution(generator); // generates random number from 0 to l-1, according to weights given
     // sort vertices according to removalCost, take vertex at index k
-    std::vector<Polygon> tmpPolygons(tour.polygons);
+    std::vector<Polygon> tmpPolygons(polygons);
     std::sort(tmpPolygons.begin(), tmpPolygons.end(), comparePolygonsRemovalCost);
     int id = tmpPolygons[k].id;
     // Pick the vertex v_j from V_T  with the kth smallest value r_j
     for (int j = 0; j < tour.polygons.size(); ++j) {
         // Remove v_j from tour, remove corresponding edges from and to v_j, add edge between disconnected vertices
-        if(tour.polygons[j].id == id){
+        if(polygons[tour.polygons[j]].id == id){
             tour.polygons.erase(tour.polygons.begin() + j);
             tour.points.erase(tour.points.begin() + j);
             break;
@@ -600,7 +612,12 @@ bool Planner::acceptTrialNoParam(double trialCost, double currentCost, double pr
  * Optimizes the tour given, while keeping the set ordering fixed.
  */
 Tour Planner::reOpt(const Tour& tour) {
-    TPP tpp(tour.polygons, 0.01f);
+    std::vector<Polygon> tmpPolygons;
+    tmpPolygons.reserve(polygons.size());
+    for (int i = 0; i < polygons.size(); ++i) {
+        tmpPolygons.emplace_back(polygons[tour.polygons[i]]);
+    }
+    TPP tpp(tmpPolygons, 0.01f);
     tpp.run();
     std::vector<FPoint> points = tpp.outputPoints;
     //The last point is the same as first one.
@@ -619,7 +636,7 @@ Tour Planner::moveOpt(Tour tour, int NMove) {
     for (int i = 0; i < NMove; i++) {
         //randomly remove a polygon from tour
         int index = getRandomInt(0, tour.polygons.size() - 1);
-        Polygon removedPolygon = tour.polygons[index];
+        int indexOfRemovedPolygon = tour.polygons[index];
         tour.polygons.erase(tour.polygons.begin() + index);
         tour.points.erase(tour.points.begin() + index);
 
@@ -629,7 +646,7 @@ Tour Planner::moveOpt(Tour tour, int NMove) {
         FPoint minPoint;
         for (int j = 0; j < tour.polygons.size(); ++j) {
             int k = j == tour.polygons.size() - 1 ? 0 : j + 1;
-            FPoint tmpOptimalPoint = TPP::findOptimalConnectingPointInPolygon(tour.points[j], tour.points[k], removedPolygon);
+            FPoint tmpOptimalPoint = TPP::findOptimalConnectingPointInPolygon(tour.points[j], tour.points[k], polygons[indexOfRemovedPolygon]);
             double tmpDist = pointToPointDist(tour.points[j], tmpOptimalPoint) + pointToPointDist(tour.points[k], tmpOptimalPoint);
             if(tmpDist < minDist){
                 minDist = tmpDist;
@@ -639,7 +656,7 @@ Tour Planner::moveOpt(Tour tour, int NMove) {
         }
 
         //reinsert polygon at minIndex
-        tour.polygons.insert(tour.polygons.begin() + minIndex + 1, 1, removedPolygon);
+        tour.polygons.insert(tour.polygons.begin() + minIndex + 1, 1, indexOfRemovedPolygon);
         tour.points.insert(tour.points.begin() + minIndex + 1, 1, minPoint);
 
         double newTourLength = getTourLength(tour);
