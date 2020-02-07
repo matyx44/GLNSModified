@@ -25,7 +25,7 @@ public:
     void run(Canvas *canvas, int argc, char *argv[]);
 
     void initHeuristics();
-    //void precomputePolyToPolyDistances();
+    void precomputePolyToPolyDistances();
     Tour initRandomInsertionTour();
 
     int getRandomInt(int from, int to);
@@ -36,6 +36,7 @@ public:
     int cheapestSetSelection(Tour& partialTour);
     Tour unifiedInsertion(Tour partialTour, float lambda, float my);
 
+    bool comparePolygonsRemovalCost(int v1, int v2);
     Tour segmentRemoval(Tour tour, int N_r);
     Tour distanceRemoval(Tour tour, int N_r, float lambda);
     Tour worstRemoval(Tour tour, int N_r, float lambda);
@@ -61,7 +62,7 @@ private:
     std::vector<Heuristic> insertionHeuristics;
     std::vector<Heuristic> removalHeuristics;
     std::minstd_rand generator;
-    //std::vector<std::vector<double> > polyToPolyDistances;
+    std::vector<std::vector<double> > polyToPolyDistances;
 
 };
 

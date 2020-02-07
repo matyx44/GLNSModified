@@ -160,6 +160,8 @@ void Planner::initHeuristics() {
  */
 Tour Planner::initRandomInsertionTour() {
     Tour tour;
+    tour.polygons.reserve(polygons.size());
+    tour.points.reserve(polygons.size());
     int indexPolygon1 = getRandomInt(0, polygons.size() - 1);
     int indexPoint1 = getRandomInt(0, polygons[indexPolygon1].points.size() - 1);
     int indexPolygon2 = getRandomInt(0, polygons.size() - 1);
@@ -192,40 +194,42 @@ double pointToPointDist(FPoint &a, FPoint &b){
     return std::sqrt(imr::geom::CIntersection<FPoint>::squared_distance(a, b));
 }
 
-double pointToPolygonDistance(FPoint point, Polygon polygon){
+double pointToPolygonDistance(FPoint &point, Polygon &polygon){
+    int size = polygon.points.size();
     double minDist = std::numeric_limits<double>::max();
-    for (int k = 0; k < polygon.points.size(); ++k) {
-        int d = k == polygon.points.size() - 1 ? 0 : k + 1;
-        double dist = std::sqrt(imr::geom::CIntersection<FPoint>::point_segment_squared_distance(point, polygon.points[k], polygon.points[d]));
+    for (int k = 0; k < size; ++k) {
+        int d = k == size - 1 ? 0 : k + 1;
+        double dist = imr::geom::CIntersection<FPoint>::point_segment_squared_distance(point, polygon.points[k], polygon.points[d]);
         if(dist < minDist) minDist = dist;
     }
-    return minDist;
+    return std::sqrt(minDist);
 }
 
-/*
+
 void Planner::precomputePolyToPolyDistances(){
-    polyToPolyDistances.reserve(polygons.size());
+    std::cout << "precompute " << std::endl;
+    std::vector<std::vector<double>> tmpPolyToPolyDistances(polygons.size(), std::vector<double>(polygons.size()));
     for (int i = 0; i < polygons.size(); ++i) {
-        polyToPolyDistances[i].reserve(polygons.size());
-        for (int j = i+1; j < polygons.size(); ++j) {
-            double minDist = std::numeric_limits<double>::max();
-            for (auto &point : polygons[i].points) {
-                for (int k = 0; k < polygons[j].points.size(); ++k) {
-                    int d = k == polygons[j].points.size() - 1 ? 0 : k + 1;
-                    double dist = std::sqrt(imr::geom::CIntersection<FPoint>::point_segment_squared_distance(point, polygons[j].points[k], polygons[j].points[d]));
-                    if(dist < minDist) minDist = dist;
+        for (int j = 0; j < polygons.size(); ++j) {
+            if(i != j){
+                double minDist = std::numeric_limits<double>::max();
+                for (auto &point : polygons[i].points) {
+                    for (int k = 0; k < polygons[j].points.size(); ++k) {
+                        int d = k == polygons[j].points.size() - 1 ? 0 : k + 1;
+                        double dist = std::sqrt(imr::geom::CIntersection<FPoint>::point_segment_squared_distance(point, polygons[j].points[k], polygons[j].points[d]));
+                        if(dist < minDist) minDist = dist;
+                    }
                 }
+                tmpPolyToPolyDistances[i][j] = minDist;
             }
-            polyToPolyDistances[i][j] = minDist;
+
         }
     }
 
-    for (int i = 0; i < polygons.size(); ++i) {
-        for (int j = i + 1; j < polygons.size(); ++j) {
-            polyToPolyDistances[j][i] = polyToPolyDistances[i][j];
-        }
-    }
-}*/
+    polyToPolyDistances = tmpPolyToPolyDistances;
+
+    std::cout << "endprecompute " << std::endl;
+}
 
 double Planner::getTourLength(Tour &tour) {
     double L1 = 0;
@@ -257,10 +261,16 @@ int Planner::unifiedSetSelection(Tour partialTour, float lambda) {
         if (!isUsed[i]) {
             // for each unused set V_i, define the minimum distance d_i = min dist(V_i, u), where u is from V_T (vertices in partial tour)
             auto minDist = FLT_MAX;
-            for(FPoint &p : partialTour.points){
-                double dist = pointToPolygonDistance(p, polygons[i]);
+            ///approximation
+            for(int id : partialTour.polygons){
+                double dist = polyToPolyDistances[id][i];
                 if(dist < minDist) minDist = dist;
             }
+            ///proper glns computation
+            /*for(FPoint &p : partialTour.points){
+                double dist = pointToPolygonDistance(p, polygons[i]);
+                if(dist < minDist) minDist = dist;
+            }*/
             unusedSetsDists.emplace_back(i, minDist);
         }
     }
@@ -297,10 +307,17 @@ int Planner::cheapestSetSelection(Tour& partialTour) {
                 FPoint pointX = partialTour.points[j];
                 FPoint pointY = partialTour.points[k];
                 Polygon prospectivePolygon = polygons[i];
+                ///APPROXIMATION
+                double lowerBound = polyToPolyDistances[partialTour.polygons[j]][i]
+                                + polyToPolyDistances[partialTour.polygons[k]][i]
+                                - pointToPointDist(pointX, pointY);
 
-                double lowerBound = pointToPolygonDistance(pointX, prospectivePolygon)
+                ///PROPER GLNS COMPUTATION
+
+                /*double lowerBound = pointToPolygonDistance(pointX, prospectivePolygon)
                         + pointToPolygonDistance(pointY, prospectivePolygon)
-                        - pointToPointDist(pointX, pointY);
+                        - pointToPointDist(pointX, pointY);*/
+
 
                 if(lowerBound < minCost){
                     FPoint tmpMinPoint = TPP::findOptimalConnectingPointInPolygon(pointX, pointY, prospectivePolygon);
@@ -350,9 +367,17 @@ Tour Planner::unifiedInsertion(Tour partialTour, float lambda, float my) {
             FPoint pointX = partialTour.points[j];
             FPoint pointY = partialTour.points[k];
 
+            ///APPROXIMATION
+            double lowerBound = polyToPolyDistances[partialTour.polygons[j]][i]
+                                + polyToPolyDistances[partialTour.polygons[k]][i]
+                                - pointToPointDist(pointX, pointY);
+
+            ///PROPER GLNS COMPUTATION
+            /*
             double lowerBound = pointToPolygonDistance(pointX, V_i)
                     + pointToPolygonDistance(pointY, V_i)
-                    - pointToPointDist(pointX, pointY);
+                    - pointToPointDist(pointX, pointY);*/
+
             double rand = distribution(generator);
 
             if(lowerBound < minWeight){
@@ -449,8 +474,8 @@ Tour Planner::worstRemoval(Tour tour, int N_r, float lambda) {
     return tour;
 }
 
-bool comparePolygonsRemovalCost(Polygon v1, Polygon v2) {
-    return (v1.removalCost < v2.removalCost);
+bool Planner::comparePolygonsRemovalCost(int v1, int v2) {
+    return (polygons[v1].removalCost < polygons[v2].removalCost);
 }
 
 Tour Planner::removalFramework(Tour tour, float lambda) {
@@ -467,9 +492,10 @@ Tour Planner::removalFramework(Tour tour, float lambda) {
     std::discrete_distribution<int> distribution(weights.begin(), weights.end());
     int k = distribution(generator); // generates random number from 0 to l-1, according to weights given
     // sort vertices according to removalCost, take vertex at index k
-    std::vector<Polygon> tmpPolygons(polygons);
-    std::sort(tmpPolygons.begin(), tmpPolygons.end(), comparePolygonsRemovalCost);
-    int id = tmpPolygons[k].id;
+    std::vector<int> tmpPolygons(tour.polygons);
+    std::sort(tmpPolygons.begin(), tmpPolygons.end(),  [this](int v1, int v2) {return polygons[v1].removalCost < polygons[v2].removalCost; });
+    int id = tmpPolygons[k];
+    //int id = polygons[k].id;
     // Pick the vertex v_j from V_T  with the kth smallest value r_j
     for (int j = 0; j < tour.polygons.size(); ++j) {
         // Remove v_j from tour, remove corresponding edges from and to v_j, add edge between disconnected vertices
@@ -696,7 +722,7 @@ Tour Planner::solve(Canvas *canvas, const std::string& mode, float maxTime, floa
     bool visualize = nullptr != canvas;
     std::cout << "Planning..." << std::endl;
 
-    //precomputePolyToPolyDistances();
+    precomputePolyToPolyDistances();
 
     // Common parameters
     auto numSets = polygons.size();
