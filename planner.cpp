@@ -26,7 +26,8 @@ Planner::Planner() {
     generator.seed(static_cast<unsigned long>(std::chrono::system_clock::now().time_since_epoch().count()));
 }
 
-void Planner::run(glns::Canvas *canvas, int argc, char *argv[]) {
+void Planner::run(glns::Canvas *canvas, int argc, char *argv[], std::string instancee) {
+    auto timeStart = std::chrono::high_resolution_clock::now();
     std::string input;
     std::string output;
     std::string mode = "fast";
@@ -66,9 +67,12 @@ void Planner::run(glns::Canvas *canvas, int argc, char *argv[]) {
     }
     input = input + "/GeneratedFiles/";
 
-    std::ofstream file;
+
     pmap::geom::FMap map;
-    pmap::loadMap(input+"potholes100.txt", map);
+    //pmap::loadMap(input+"50_ngons_intersect.txt", map);
+    pmap::loadMap(input+instancee, map);
+    //pmap::loadMap(input+"var_density_80.txt", map);
+    //pmap::loadMap(input+"100_6gons_intersect.txt", map);
 
     for (int i = 1; i < map.size(); ++i) {
         std::vector<FPoint> points;
@@ -79,32 +83,42 @@ void Planner::run(glns::Canvas *canvas, int argc, char *argv[]) {
         polygons.emplace_back(pol);
     }
 
-    std::cout << "Loaded problem " << input << std::endl;
-    auto timeStart = std::chrono::high_resolution_clock::now();
+    //std::cout << "Loaded problem " << input << std::endl;
+
     Tour tour = solve(canvas, mode, maxTime, tourBudget);
 
-    std::cout << "Number of sets: " << tour.polygons.size() <<std::endl;
+
+
+    //std::cout << "Number of sets: " << tour.polygons.size() <<std::endl;
+
+    auto t_now = std::chrono::high_resolution_clock::now();
+    double timeFromStart = std::chrono::duration<double, std::milli>(t_now - timeStart).count();
+    std::cout << "Time: " << timeFromStart/1000.0 << " s" << std::endl;
+    finalTime = timeFromStart / 1000.0;
+
     //Draw tour
     pmap::draw::MapDrawer md(map);
-    md.openPDF(input+"outputTPPPotholes.pdf");
+    md.openPDF(input+"output.pdf");
+    md.drawPlane(PMAP_DRAW_COL_WHITE);
     for (auto &polygon : polygons) {
         double r = getRandomInt(0,255);
         double g = getRandomInt(0,255);
         double b = getRandomInt(0,255);
         pmap::draw::RGB col = {r,g,b};
+        md.drawPolygon(polygon.points, col, 0.3);
 
-        for (int i = 0; i < polygon.points.size(); ++i) {
+        /*for (int i = 0; i < polygon.points.size(); ++i) {
             int j = i == polygon.points.size() - 1 ? 0 : i + 1;
             md.drawLine(polygon.points[i], polygon.points[j], 15.0, col);
-        }
+        }*/
     }
     for (int l = 0; l < tour.points.size(); ++l) {
         int m = l == tour.points.size() - 1 ? 0 : l + 1;
         FPoint p1 = tour.points[l];
         FPoint p2 = tour.points[m];
-        md.drawPoint(p1, PMAP_DRAW_COL_BLUE, 10, 1);
-        md.drawPoint(p2, PMAP_DRAW_COL_BLUE, 10, 1);
-        md.drawLine(p1, p2, 10, PMAP_DRAW_COL_GREEN, 1.0);
+        //md.drawPoint(p1, PMAP_DRAW_COL_BLUE, 10, 1);
+        //md.drawPoint(p2, PMAP_DRAW_COL_BLUE, 10, 1);
+        md.drawLine(p1, p2, 10, PMAP_DRAW_COL_BLACK, 1.0);
     }
     /*
     for (geom_float l = 100; l <= 2200; l+=100) {
@@ -115,6 +129,8 @@ void Planner::run(glns::Canvas *canvas, int argc, char *argv[]) {
     }*/
 
     md.closePDF();
+
+
 
 }
 
@@ -207,7 +223,6 @@ double pointToPolygonDistance(FPoint &point, Polygon &polygon){
 
 
 void Planner::precomputePolyToPolyDistances(){
-    std::cout << "precompute " << std::endl;
     std::vector<std::vector<double>> tmpPolyToPolyDistances(polygons.size(), std::vector<double>(polygons.size()));
     for (int i = 0; i < polygons.size(); ++i) {
         for (int j = 0; j < polygons.size(); ++j) {
@@ -227,8 +242,6 @@ void Planner::precomputePolyToPolyDistances(){
     }
 
     polyToPolyDistances = tmpPolyToPolyDistances;
-
-    std::cout << "endprecompute " << std::endl;
 }
 
 double Planner::getTourLength(Tour &tour) {
@@ -262,15 +275,15 @@ int Planner::unifiedSetSelection(Tour partialTour, float lambda) {
             // for each unused set V_i, define the minimum distance d_i = min dist(V_i, u), where u is from V_T (vertices in partial tour)
             auto minDist = FLT_MAX;
             ///approximation
-            for(int id : partialTour.polygons){
+            /*for(int id : partialTour.polygons){
                 double dist = polyToPolyDistances[id][i];
                 if(dist < minDist) minDist = dist;
-            }
+            }*/
             ///proper glns computation
-            /*for(FPoint &p : partialTour.points){
+            for(FPoint &p : partialTour.points){
                 double dist = pointToPolygonDistance(p, polygons[i]);
                 if(dist < minDist) minDist = dist;
-            }*/
+            }
             unusedSetsDists.emplace_back(i, minDist);
         }
     }
@@ -293,7 +306,7 @@ int Planner::unifiedSetSelection(Tour partialTour, float lambda) {
     return id;
 }
 
-int Planner::cheapestSetSelection(Tour& partialTour) {
+int Planner::cheapestSetSelection(Tour partialTour) {
     std::vector<bool> isUsed(polygons.size(), false);
     for (auto &id : partialTour.polygons) {
         isUsed[id] = true;
@@ -720,7 +733,7 @@ Tour Planner::optCycle(Tour tour, int NMove, std::string mode) {
  */
 Tour Planner::solve(Canvas *canvas, const std::string& mode, float maxTime, float tourBudget) {
     bool visualize = nullptr != canvas;
-    std::cout << "Planning..." << std::endl;
+    //std::cout << "Planning..." << std::endl;
 
     precomputePolyToPolyDistances();
 
@@ -877,17 +890,11 @@ Tour Planner::solve(Canvas *canvas, const std::string& mode, float maxTime, floa
         coldTrialsCnt++;
     } // Cold trials loop
 
-    std::cout << "Best tour found: ";
-    for (auto &v:lowestT.points) {
-        std::cout << v.x << " " << v.y << std::endl;
-    }
-    std::cout << std::endl;
+    //std::cout << "Best tour found: " << std::endl;
+    lowestT = reOpt(lowestT);
     std::cout << "Weight: " << getTourLength(lowestT) << std::endl;
-    // for (auto v:lowest.vertices) std::cout << v.id << " ";
-    // std::cout << std::endl;
-    auto t_now = std::chrono::high_resolution_clock::now();
-    double timeFromStart = std::chrono::duration<double, std::milli>(t_now - timeStart).count();
-    std::cout << "Time: " << timeFromStart << " ms" << std::endl;
+
+    finalWeight = getTourLength(lowestT);
 
     return lowestT;
 }

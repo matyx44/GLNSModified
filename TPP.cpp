@@ -117,6 +117,14 @@ static bool lineSegmentLineIntersect(FPoint & p1, FPoint & p2, FPoint & p3, FPoi
 
 FPoint TPP::findOptimalConnectingPointInPolygon(FPoint &pointA, FPoint &pointB, Polygon &polygon){
     FPoint optimalPoint;
+    if(CIntersection<FPoint>::cn_PnPoly(pointA, polygon.points) && CIntersection<FPoint>::cn_PnPoly(pointB, polygon.points)){
+        optimalPoint = FPoint((pointA.x + pointB.x)/2, (pointA.y + pointB.y)/2);
+        if(CIntersection<FPoint>::cn_PnPoly(optimalPoint, polygon.points))
+            return optimalPoint;
+        //else return FPoint(pointA.x,pointA.y);
+    }
+
+
     double minDist = std::numeric_limits<double>::max();
     int n = polygon.points.size();
     for (int i = 0; i < n; i++) {

@@ -255,13 +255,14 @@ void pmap::loadMap(std::string filename, FMap &map) {
     }
     double w = ((ymax - ymin) * 0.05);
     /// Apply the width and round:
+    /*
     auto rounder = static_cast<int>(1e6);
     for (auto &polygon : map) {
         for (auto &p : polygon) {
             p.x = round((p.x + w) * rounder) / rounder;
             p.y = round((p.y + w) * rounder) / rounder;
         }
-    }
+    }*/
 }
 
 double pmap::deg2rad(double deg) {

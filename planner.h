@@ -21,8 +21,12 @@ class Canvas;
 
 class Planner {
 public:
+
+    double finalWeight;
+    double finalTime;
+
     Planner();
-    void run(Canvas *canvas, int argc, char *argv[]);
+    void run(Canvas *canvas, int argc, char *argv[], std::string instance);
 
     void initHeuristics();
     void precomputePolyToPolyDistances();
@@ -33,7 +37,7 @@ public:
     int getRandomNumber(int from, int to);
 
     int unifiedSetSelection(Tour partialTour, float lambda);
-    int cheapestSetSelection(Tour& partialTour);
+    int cheapestSetSelection(Tour partialTour);
     Tour unifiedInsertion(Tour partialTour, float lambda, float my);
 
     bool comparePolygonsRemovalCost(int v1, int v2);
@@ -63,6 +67,8 @@ private:
     std::vector<Heuristic> removalHeuristics;
     std::minstd_rand generator;
     std::vector<std::vector<double> > polyToPolyDistances;
+
+
 
 };
 
