@@ -29,6 +29,10 @@ void TPP::run() {
     //Step 2 - Find the length L1
     std::vector<FPoint> points = algorithm3(convexHulls);
 
+    FPoint point0 = findOptimalConnectingPointInPolygon(points[inputPolygons.size()-1], points[1], inputPolygons[0]);
+    points[0] = point0;
+    points[inputPolygons.size()] = point0;
+
     for (int i = 1; i < inputPolygons.size(); ++i) {
         points[i] = findOptimalConnectingPointInPolygon(points[i-1], points[i+1], inputPolygons[i]);
     }

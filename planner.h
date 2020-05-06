@@ -26,7 +26,7 @@ public:
     double finalTime;
 
     Planner();
-    void run(Canvas *canvas, int argc, char *argv[], std::string instance);
+    void run(Canvas *canvas, int argc, char *argv[], std::string instance, std::string modd);
 
     void initHeuristics();
     void precomputePolyToPolyDistances();

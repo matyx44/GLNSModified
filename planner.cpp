@@ -26,11 +26,11 @@ Planner::Planner() {
     generator.seed(static_cast<unsigned long>(std::chrono::system_clock::now().time_since_epoch().count()));
 }
 
-void Planner::run(glns::Canvas *canvas, int argc, char *argv[], std::string instancee) {
+void Planner::run(glns::Canvas *canvas, int argc, char *argv[], std::string instancee, std::string mmod) {
     auto timeStart = std::chrono::high_resolution_clock::now();
     std::string input;
     std::string output;
-    std::string mode = "fast";
+    std::string mode = mmod;
     bool outFlag = false;
     bool visualize = false;
     float maxTime = DBL_MAX;
@@ -275,15 +275,15 @@ int Planner::unifiedSetSelection(Tour partialTour, float lambda) {
             // for each unused set V_i, define the minimum distance d_i = min dist(V_i, u), where u is from V_T (vertices in partial tour)
             auto minDist = FLT_MAX;
             ///approximation
-            /*for(int id : partialTour.polygons){
+            for(int id : partialTour.polygons){
                 double dist = polyToPolyDistances[id][i];
                 if(dist < minDist) minDist = dist;
-            }*/
+            }
             ///proper glns computation
-            for(FPoint &p : partialTour.points){
+            /*for(FPoint &p : partialTour.points){
                 double dist = pointToPolygonDistance(p, polygons[i]);
                 if(dist < minDist) minDist = dist;
-            }
+            }*/
             unusedSetsDists.emplace_back(i, minDist);
         }
     }

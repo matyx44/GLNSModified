@@ -8,7 +8,7 @@
 
 using namespace glns;
 
-void calculateConfidenceForFile(double executions, double iterations, std::string instance, int argc, char *argv[]){
+void calculateConfidenceForFile(double executions, double iterations, std::string instance, int argc, char *argv[], std::string mode){
     double t = 2.262f;
 
     std::vector<double> avgWeights;
@@ -26,7 +26,7 @@ void calculateConfidenceForFile(double executions, double iterations, std::strin
         for(int i = 0; i < iterations; i++){
 
             Planner planner;
-            planner.run(nullptr, argc, argv, instance+".txt");
+            planner.run(nullptr, argc, argv, instance+".txt", mode);
             fileWeight << planner.finalWeight << "\n";
             fileTime << planner.finalTime << "\n";
 
@@ -105,6 +105,11 @@ int main(int argc, char *argv[]) {
     std::string gons8 = "50_8gons";
     std::string gons9 = "50_9gons";
     std::string gons10 = "50_10gons";
+    std::string gons20 = "50_20gons";
+    std::string gons30 = "50_30gons";
+    std::string gons40 = "50_40gons";
+    std::string gons80 = "50_80gons";
+    std::string gons160 = "50_160gons";
 
     std::string density40 = "density_40";
     std::string density80 = "density_80";
@@ -121,15 +126,18 @@ int main(int argc, char *argv[]) {
     std::string potholesInf = "potholes-inf";
 
     std::vector<std::string> instances;
-    instances.emplace_back(potholes2);
-    instances.emplace_back(potholes3);
-    instances.emplace_back(density120);
-    instances.emplace_back(density160);
-    instances.emplace_back(density200);
-    instances.emplace_back(ngonsintersect150);
-    instances.emplace_back(ngonsintersect200);
-    instances.emplace_back(density400);
-    instances.emplace_back(ngonsintersect400);
+    //instances.emplace_back(potholes2);
+    //instances.emplace_back(potholes3);
+    //instances.emplace_back(density120);
+    //instances.emplace_back(density160);
+    //instances.emplace_back(density200);
+    //instances.emplace_back(ngonsintersect200);
+    //instances.emplace_back(ngonsintersect200);
+    //instances.emplace_back(density40);
+    //instances.emplace_back(density400);
+
+
+    //instances.emplace_back(ngonsintersect400);
 
     //instances.emplace_back(gons3);
     //instances.emplace_back(gons4);
@@ -139,8 +147,13 @@ int main(int argc, char *argv[]) {
     //instances.emplace_back(gons8);
     //instances.emplace_back(gons9);
     //instances.emplace_back(gons10);
+    //instances.emplace_back(gons20);
+    //instances.emplace_back(gons30);
+    //instances.emplace_back(gons40);
+    //instances.emplace_back(gons80);
+    //instances.emplace_back(gons160);
 
-    //instances.emplace_back(potholesInf);
+    instances.emplace_back(potholesInf);
     //instances.emplace_back(potholes8);
     //instances.emplace_back(potholes6);
     //instances.emplace_back(density80);
@@ -148,12 +161,14 @@ int main(int argc, char *argv[]) {
     //instances.emplace_back(potholes4);
     //instances.emplace_back(ngonsintersect100);
 
+    //instances.emplace_back(potholesInf);
+
 
     double executions = 5;
     double iterations = 10;
 
     for(std::string instance : instances){
-        calculateConfidenceForFile(executions,iterations,instance,argc,argv);
+        calculateConfidenceForFile(executions,iterations,instance,argc,argv, "fast");
     }
 
 
